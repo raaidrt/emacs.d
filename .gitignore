@@ -1,0 +1,9 @@
+# Emacs Lisp .gitignore
+.local/
+backups/
+elpa/
+eshell/
+*~
+recentf
+transient/
+undo/
