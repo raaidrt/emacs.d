@@ -213,7 +213,9 @@
   :config
   (ivy-mode 1)
   (setq ivy-use-virtual-buffers t)
-  (setq ivy-count-format "(%d/%d) "))
+  (setq ivy-count-format "(%d/%d) ")
+  ;; Remove initial ^ from M-x and other commands
+  (setq ivy-initial-inputs-alist nil))
 
 (use-package counsel
   :ensure t
