@@ -13,6 +13,7 @@
 (tooltip-mode -1)           ; Disable tooltips
 (set-fringe-mode 10)        ; Give some breathing room
 (menu-bar-mode -1)          ; Disable the menu bar
+(global-auto-revert-mode 1) ; Enable auto-revert-mode for all files
 
 ;; Set up the visible bell
 (setq visible-bell nil)
