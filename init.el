@@ -124,6 +124,8 @@
     "wd" 'delete-window
     "wD" 'delete-other-windows
     "w=" 'balance-windows
+    "w]" 'enlarge-window-horizontally
+    "w[" 'shrink-window-horizontally
     
     ;; Help/Documentation
     "h" '(:ignore t :which-key "help")
