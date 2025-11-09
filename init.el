@@ -69,6 +69,48 @@
   :config
   (evil-collection-init))
 
+(defun custom/window-expand-repeatedly ()
+  "Expand the window horizontally.  Continue expanding while ] is pressed."
+  (interactive)
+  (enlarge-window-horizontally 3)
+  (set-transient-map
+   (let ((map (make-sparse-keymap)))
+     (define-key map (kbd "]")
+                 (lambda ()
+                   (interactive)
+                   (enlarge-window-horizontally 3)
+                   (message "Window width: %s" (window-width))))
+     (define-key map (kbd "[")
+                 (lambda ()
+                   (interactive)
+                   (shrink-window-horizontally 3)
+                   (message "Window width: %s" (window-width))))
+     map)
+   t
+   (lambda () (message "Window resizing done. Width: %s" (window-width)))))
+
+(defun custom/window-shrink-repeatedly ()
+  "Shrink the window horizontally.  Continue expanding while [ is pressed."
+  (interactive)
+  (shrink-window-horizontally 3)
+  (set-transient-map
+   (let ((map (make-sparse-keymap)))
+     (define-key map (kbd "[")
+                 (lambda ()
+                   (interactive)
+                   (shrink-window-horizontally 3)
+                   (message "Window width: %s" (window-width))))
+     (define-key map (kbd "[")
+                 (lambda ()
+                   (interactive)
+                   (shrink-window-horizontally 3)
+                   (message "Window width: %s" (window-width))))
+     map)
+   t
+   (lambda () (message "Window resizing done. Width: %s" (window-width)))))
+
+
+
 ;; General.el for keybindings (more flexible than alternatives like hydra)
 ;; General provides the best flexibility for defining complex keybindings
 ;; and has excellent documentation
@@ -125,9 +167,9 @@
     "wd" 'delete-window
     "wD" 'delete-other-windows
     "w=" 'balance-windows
-    "w]" 'enlarge-window-horizontally
-    "w[" 'shrink-window-horizontally
-    
+    "w]" 'custom/window-expand-repeatedly
+    "w[" 'custom/window-shrink-repeatedly
+
     ;; Help/Documentation
     "h" '(:ignore t :which-key "help")
     "hf" 'helpful-callable
