@@ -2,26 +2,12 @@
 
 ;;; Commentary:
 ;; Package management and use-package setup
+;; Note: Package initialization is handled in init.el
 
 ;;; Code:
 
-;; Initialize package sources
-(require 'package)
-(setq package-archives '(("melpa" . "https://melpa.org/packages/")
-                         ("org" . "https://orgmode.org/elpa/")
-                         ("elpa" . "https://elpa.gnu.org/packages/")
-			 ("nongnu" . "https://elpa.nongnu.org/nongnu/")))
-
-(package-initialize)
-(unless package-archive-contents
-  (package-refresh-contents))
-
-;; Initialize use-package
-(unless (package-installed-p 'use-package)
-  (package-install 'use-package))
-
-(require 'use-package)
-(setq use-package-always-ensure t)
+;; This file is intentionally minimal since package setup is done in init.el
+;; You can add additional package-related configuration here if needed
 
 (provide 'packages)
 ;;; packages.el ends here

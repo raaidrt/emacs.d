@@ -90,55 +90,38 @@
   :config
   (lsp-treemacs-sync-mode 1))
 
-;; Python configuration with Ruff support
-(use-package python-mode
-  :ensure t
-  :mode "\\.py\\'"
-  :config
-  ;; Avoid byte-compiler warnings: declare variables that are defined by lsp-pylsp
-  (defvar lsp-pylsp-plugins-ruff-enabled)
-  (defvar lsp-pylsp-plugins-ruff-format-enabled)
-  (defvar lsp-pylsp-plugins-ruff-lint-enabled)
-  (defvar lsp-pylsp-plugins-black-enabled)
-  (defvar lsp-pylsp-plugins-autopep8-enabled)
-  (defvar lsp-pylsp-plugins-yapf-enabled)
-  (defvar lsp-pylsp-plugins-flake8-enabled)
-  (defvar lsp-pylsp-plugins-pycodestyle-enabled)
-  (defvar lsp-pylsp-plugins-pyflakes-enabled)
-  (defvar lsp-pylsp-plugins-pylint-enabled)
-  ;; Configure pylsp options only after lsp-pylsp is available
-  (with-eval-after-load 'lsp-pylsp
-    ;; Use ruff for formatting and linting
-    (setq lsp-pylsp-plugins-ruff-enabled t)
-    (setq lsp-pylsp-plugins-ruff-format-enabled t)
-    (setq lsp-pylsp-plugins-ruff-lint-enabled t)
-    ;; Disable other formatters/linters
-    (setq lsp-pylsp-plugins-black-enabled nil)
-    (setq lsp-pylsp-plugins-autopep8-enabled nil)
-    (setq lsp-pylsp-plugins-yapf-enabled nil)
-    (setq lsp-pylsp-plugins-flake8-enabled nil)
-    (setq lsp-pylsp-plugins-pycodestyle-enabled nil)
-    (setq lsp-pylsp-plugins-pyflakes-enabled nil)
-    (setq lsp-pylsp-plugins-pylint-enabled nil)))
+;; Python LSP configuration
+;; Using pyright for type checking and navigation
+;; Using ruff server for linting and formatting
+;; Install: pip install pyright ruff
 
-;; Alternative: pyright with ruff
+;; Pyright - Python type checker and LSP
 (use-package lsp-pyright
   :ensure t
+  :custom
+  ;; Use pyright as the primary Python LSP server
+  (lsp-pyright-langserver-command "pyright")
+  ;; Disable type checking overlaps if you prefer ruff for linting
+  (lsp-pyright-disable-language-services nil)
+  (lsp-pyright-disable-organize-imports nil)
   :hook (python-mode . (lambda ()
                           (require 'lsp-pyright)
-                          (lsp-deferred)))
-  :config
-  (add-hook 'python-mode-hook
-            (lambda ()
-              (add-hook 'before-save-hook #'my/python-format-buffer-with-ruff nil t))))
+                          (lsp-deferred))))
 
-;; Use ruff for formatting
-(defun my/python-format-buffer-with-ruff ()
-  "Format Python buffer using ruff."
-  (interactive)
-  (shell-command-on-region (point-min) (point-max)
-                           "ruff format -"
-                           nil t))
+;; Ruff - Modern Python linter and formatter
+;; As of 2024, use 'ruff server' instead of deprecated 'ruff-lsp'
+(with-eval-after-load 'lsp-mode
+  ;; Disable pylsp to avoid conflicts (we're using pyright instead)
+  (setq lsp-disabled-clients '(pylsp))
+
+  ;; Enable ruff server (requires ruff >= 0.5.3)
+  ;; This runs alongside pyright as an add-on server
+  (setq lsp-ruff-lsp-server-command '("ruff" "server"))
+
+  ;; Configure which servers to use for Python
+  (defvar lsp-enabled-clients)
+  (add-to-list 'lsp-enabled-clients 'pyright)
+  (add-to-list 'lsp-enabled-clients 'ruff))
 
 ;; LaTeX configuration
 (use-package auctex

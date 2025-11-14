@@ -14,7 +14,11 @@
                          ("elpa" . "https://elpa.gnu.org/packages/")
 			 ("nongnu" . "https://elpa.nongnu.org/nongnu/")))
 
-(package-initialize)
+;; package-initialize is called automatically in Emacs 27+
+;; Only call it explicitly for older versions
+(when (version< emacs-version "27.0")
+  (package-initialize))
+
 (unless package-archive-contents
   (package-refresh-contents))
 
@@ -62,3 +66,16 @@ DIRECTORIES should be a list of directory names relative to
 
 (provide 'init)
 ;;; init.el ends here
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(package-vc-selected-packages
+   '((claude-code :url "https://github.com/stevemolitor/claude-code.el"))))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )

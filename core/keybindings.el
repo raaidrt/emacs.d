@@ -24,6 +24,8 @@
   :after evil
   :ensure t
   :config
+  ;; Don't initialize org mode here - it will be initialized after org is loaded
+  (setq evil-collection-mode-list (remove 'org evil-collection-mode-list))
   (evil-collection-init))
 
 ;; Window resizing functions
@@ -144,18 +146,18 @@
     "sg" 'counsel-grep-or-swiper
     "sr" 'counsel-rg
     
-    ;; Code/LSP
-    "c" '(:ignore t :which-key "code")
-    "ca" 'lsp-execute-code-action
-    "cf" 'lsp-format-buffer
-    "cF" 'lsp-format-region
-    "cr" 'lsp-rename
-    "cd" 'lsp-find-definition
-    "cD" 'lsp-find-declaration
-    "ci" 'lsp-find-implementation
-    "ct" 'lsp-find-type-definition
-    "cR" 'lsp-find-references
-    "ce" 'flycheck-list-errors
+    ;; LSP
+    "l" '(:ignore t :which-key "lsp")
+    "la" 'lsp-execute-code-action
+    "lf" 'lsp-format-buffer
+    "lF" 'lsp-format-region
+    "lr" 'lsp-rename
+    "lD" 'lsp-find-definition
+    "ld" 'lsp-find-declaration
+    "li" 'lsp-find-implementation
+    "lt" 'lsp-find-type-definition
+    "lR" 'lsp-find-references
+    "le" 'flycheck-list-errors
     
     ;; Git
     "g" '(:ignore t :which-key "git")
@@ -180,6 +182,11 @@
     "q" '(:ignore t :which-key "quit")
     "qq" 'save-buffers-kill-terminal
     "qQ" 'kill-emacs))
+
+;; LSP mode-specific keybindings
+;; Shift+K to show documentation in LSP buffers
+(with-eval-after-load 'lsp-mode
+  (evil-define-key 'normal lsp-mode-map (kbd "K") 'lsp-describe-thing-at-point))
 
 ;; Undo tree for Evil
 (use-package undo-tree

@@ -4,21 +4,9 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(package-selected-packages
-   '(all-the-icons auctex claude-code command-log-mode company
-		   company-box counsel counsel-projectile
-		   doom-modeline eat embark embark-consult evil
-		   evil-collection flycheck general helpful ivy
-		   ivy-rich lsp-ivy lsp-mode lsp-pyright lsp-treemacs
-		   lsp-ui magit marginalia mixed-pitch monet orderless
-		   org-bullets projectile python-mode
-		   rainbow-delimiters restart-emacs smartparens
-		   treemacs-evil treemacs-magit treemacs-projectile
-		   undo-tree vterm))
+ '(package-selected-packages nil)
  '(package-vc-selected-packages
-   '((monet :url "https://github.com/stevemolitor/monet")
-     (claude-code :url
-		  "https://github.com/stevemolitor/claude-code.el"))))
+   '((claude-code :url "https://github.com/stevemolitor/claude-code.el"))))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
