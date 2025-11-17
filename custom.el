@@ -4,7 +4,15 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(package-selected-packages nil)
+ '(package-selected-packages
+   '(all-the-icons auctex claude-code command-log-mode company-box
+		   counsel-projectile doom-modeline eat embark-consult
+		   evil-collection flycheck general helpful htmlize
+		   ivy-rich lsp-ivy lsp-pyright lsp-treemacs lsp-ui
+		   marginalia monet orderless org-bullets python-mode
+		   rainbow-delimiters restart-emacs smartparens
+		   treemacs-evil treemacs-magit treemacs-projectile
+		   undo-tree vterm))
  '(package-vc-selected-packages
    '((claude-code :url "https://github.com/stevemolitor/claude-code.el"))))
 (custom-set-faces

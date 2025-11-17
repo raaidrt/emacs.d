@@ -7,3 +7,11 @@ eshell/
 recentf
 transient/
 undo/
+auto-save-list/
+backups/
+elpa/
+transient/
+undo/
+.claude
+.cache
+

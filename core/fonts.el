@@ -9,7 +9,7 @@
 (set-face-attribute 'default nil :font "Monaco" :height 150)
 
 ;; Example for setting variable-pitch font for documentation
-(set-face-attribute 'variable-pitch nil :family "Times New Roman" :height 1.1)
+(set-face-attribute 'variable-pitch nil :family "Source Sans 3" :height 1.1)
 
 (provide 'fonts)
 ;;; fonts.el ends here

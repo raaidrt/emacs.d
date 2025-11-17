@@ -12,7 +12,10 @@
   :config
   ;; LaTeX preview settings
   (setq org-startup-with-latex-preview t)
-  (plist-put org-format-latex-options :scale 2.0)
+  (add-hook 'org-mode-hook
+            (lambda ()
+              (setq org-format-latex-options 
+                    (plist-put org-format-latex-options :scale 2.0))))
   (setq org-preview-latex-process-alist
         '((dvisvgm :programs ("latex" "dvisvgm")
            :description "dvi > svg"
@@ -50,5 +53,10 @@
   :after org
   :hook (org-mode . org-bullets-mode))
 
-(provide 'org-mode-config)
+;; Htmlize for syntax highlighting in HTML exports
+(use-package htmlize
+  :ensure t
+  :after org)
+
+(provide 'org-config)
 ;;; org.el ends here
