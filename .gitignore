@@ -1,0 +1,22 @@
+# Emacs Lisp .gitignore
+.local/
+backups/
+elpa/
+eshell/
+*~
+recentf
+transient/
+undo/
+auto-save-list/
+backups/
+elpa/
+transient/
+undo/
+.claude
+.cache
+.lsp-session-v1
+\#*\#
+projects
+custom.el
+config.el 
+projectile*

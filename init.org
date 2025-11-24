@@ -1,0 +1,1056 @@
+#+TITLE: Emacs Literate Configuration
+#+AUTHOR: Raaid Tanveer
+#+PROPERTY: header-args:emacs-lisp :tangle config.el :lexical t
+#+STARTUP: overview
+
+* Table of Contents :TOC:
+:PROPERTIES:
+:TOC: :include all :depth 3 :force (nothing) :ignore (this) :local (nothing)
+:END:
+
+* Introduction
+This is a literate Emacs configuration written in Org mode. Each section contains
+documentation about what the configuration does, followed by the actual Emacs Lisp code.
+
+The configuration is organized into logical sections:
+- Package management and bootstrapping
+- Core UI and visual settings
+- Font configuration
+- Evil mode (Vim emulation) and keybindings
+- Development tools (LSP, completion, project management)
+- Claude Code integration
+
+* Bootstrap and Package Management
+** File Header
+Every Emacs Lisp file should start with proper headers for documentation and to enable lexical binding.
+
+#+begin_src emacs-lisp
+;;; config.el --- Enhanced Emacs Configuration -*- lexical-binding: t -*-
+
+;;; Commentary:
+;; A comprehensive Emacs configuration with Evil mode, LSP support,
+;; and keybindings similar to Doom Emacs.
+;; This file is generated from init.org - do not edit directly!
+
+;;; Code:
+#+end_src
+
+** Package Sources
+Configure the package archives that Emacs will use to download packages. We use:
+- MELPA: The largest community-driven package repository
+- Org: Official Org-mode packages
+- ELPA: Official GNU Emacs packages
+- NonGNU: Additional free software packages
+
+#+begin_src emacs-lisp
+;; Initialize package sources
+(require 'package)
+(setq package-archives '(("melpa" . "https://melpa.org/packages/")
+                         ("org" . "https://orgmode.org/elpa/")
+                         ("elpa" . "https://elpa.gnu.org/packages/")
+                         ("nongnu" . "https://elpa.nongnu.org/nongnu/")))
+#+end_src
+
+** Package Initialization
+Emacs 27+ calls =package-initialize= automatically, but we need to call it manually for older versions.
+
+#+begin_src emacs-lisp
+;; package-initialize is called automatically in Emacs 27+
+;; Only call it explicitly for older versions
+(when (version< emacs-version "27.0")
+  (package-initialize))
+
+(unless package-archive-contents
+  (package-refresh-contents))
+#+end_src
+
+** use-package Setup
+=use-package= is a macro that allows cleaner package configuration with lazy loading,
+keybindings, and hooks all in one declaration. This improves startup time and organization.
+
+#+begin_src emacs-lisp
+;; Initialize use-package
+(unless (package-installed-p 'use-package)
+  (package-install 'use-package))
+
+(require 'use-package)
+(setq use-package-always-ensure t)
+#+end_src
+* Shell Environment Replication
+Replicate the Shell Environment variables within Emacs.
+#+BEGIN_SRC emacs-lisp
+  (use-package exec-path-from-shell)
+  (when (memq window-system '(mac ns x))
+    (exec-path-from-shell-initialize))
+#+END_SRC
+
+* Core UI Configuration
+** Basic UI Cleanup
+Remove visual clutter to create a cleaner, more distraction-free environment.
+#+begin_src emacs-lisp
+;; Basic UI Configuration
+(setq inhibit-startup-message t)  ; Skip the startup screen
+(scroll-bar-mode -1)               ; Disable visible scrollbar
+(tool-bar-mode -1)                 ; Disable the toolbar
+(tooltip-mode -1)                  ; Disable tooltips
+(set-fringe-mode 10)               ; Give some breathing room
+(menu-bar-mode -1)                 ; Disable the menu bar
+#+end_src
+
+** Auto-revert Mode
+Automatically reload files that have changed on disk. This is useful when working with
+version control or when files are modified by external processes.
+
+#+begin_src emacs-lisp
+;; Enable auto-revert-mode for all files
+(global-auto-revert-mode 1)
+#+end_src
+
+** Bell Configuration
+Disable the annoying bell sound completely.
+
+#+begin_src emacs-lisp
+;; Set up the visible bell
+(setq visible-bell nil)
+(setq ring-bell-function 'ignore)
+#+end_src
+
+** Theme
+The Wombat theme provides a dark color scheme with good contrast.
+
+#+begin_src emacs-lisp
+;; Load theme
+(load-theme 'wombat)
+#+end_src
+
+** ESC Key Behavior
+Make ESC behave more like Vim - it should quit prompts and cancel operations.
+
+#+begin_src emacs-lisp
+;; Make ESC quit prompts
+(global-set-key (kbd "<escape>") 'keyboard-escape-quit)
+#+end_src
+
+** Line Numbers
+Display line numbers globally, but disable them in certain modes where they don't make sense
+(terminals, org-mode, file browsers). Also customize the colors to be less distracting.
+
+#+begin_src emacs-lisp
+;; Line numbers
+(column-number-mode)
+(global-display-line-numbers-mode t)
+
+;; Disable line numbers for certain modes
+(dolist (mode '(org-mode-hook
+                term-mode-hook
+                shell-mode-hook
+                eshell-mode-hook
+                treemacs-mode-hook))
+  (add-hook mode (lambda () (display-line-numbers-mode 0))))
+
+;; Customize line number colors
+(set-face-attribute 'line-number nil :foreground "#6B6B6B")
+(set-face-attribute 'line-number-current-line nil :foreground "#FFA500")
+#+end_src
+
+** Fill Column Indicator
+Show a vertical line at 80 characters to help maintain code width standards.
+This is disabled in modes where line length doesn't matter.
+
+#+begin_src emacs-lisp
+;; 80 character line limit indicator
+(setq-default fill-column 80)
+(global-display-fill-column-indicator-mode 1)
+
+;; Disable in certain modes
+(dolist (mode '(org-mode-hook
+                term-mode-hook
+                shell-mode-hook
+                eshell-mode-hook
+                treemacs-mode-hook))
+  (add-hook mode (lambda () (display-fill-column-indicator-mode 0))))
+#+end_src
+
+** Recent Files
+Keep track of recently opened files for quick access.
+
+#+begin_src emacs-lisp
+;; Recent files
+(require 'recentf)
+(recentf-mode 1)
+(setq recentf-max-menu-items 25)
+(setq recentf-max-saved-items 25)
+#+end_src
+
+** Auto-save and Backup Settings
+Configure Emacs to save backup files to a dedicated directory instead of cluttering
+your working directories with ~ files.
+
+#+begin_src emacs-lisp
+;; Auto-save and backup settings
+(setq auto-save-default t
+      make-backup-files t
+      backup-directory-alist '(("." . "~/.emacs.d/backups"))
+      backup-by-copying t
+      version-control t
+      delete-old-versions t
+      kept-new-versions 6
+      kept-old-versions 2)
+#+end_src
+
+** Custom Variables and Faces
+
+*** Custom File Location
+Set the custom-file to prevent Emacs from writing customizations to init.el.
+We define our customizations inline in this literate config instead of loading from an external file.
+
+#+begin_src emacs-lisp
+;; Set custom-file location but don't load it
+;; This prevents Emacs from polluting init.el with auto-generated customizations
+(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
+#+end_src
+
+*** Custom Variables
+Configure package-specific settings and behaviors.
+
+#+begin_src emacs-lisp
+;; Helm configuration
+(setq helm-minibuffer-history-key "M-p")
+
+;; Package management
+(setq package-selected-packages nil)
+(setq package-vc-selected-packages '((monet :url "https://github.com/stevemolitor/monet")))
+#+end_src
+
+*** Org Mode Custom Faces
+Configure Org mode to use variable-pitch fonts for prose and fixed-pitch for code blocks,
+creating a more readable document-like appearance. This makes org-mode documents look
+like formatted documents with proper typography while keeping code blocks in monospace.
+
+#+begin_src emacs-lisp
+;; Org mode face customizations for better readability
+(custom-set-faces
+ '(org-block ((t (:inherit fixed-pitch))))
+ '(org-block-begin-line ((t (:inherit fixed-pitch))))
+ '(org-block-end-line ((t (:inherit fixed-pitch))))
+ '(org-code ((t (:inherit (shadow fixed-pitch)))))
+ '(org-document-info-keyword ((t (:inherit (shadow fixed-pitch)))))
+ '(org-document-title ((t (:inherit variable-pitch :weight bold :height 1.3))))
+ '(org-drawer ((t (:inherit fixed-pitch))))
+ '(org-indent ((t (:inherit (org-hide fixed-pitch)))))
+ '(org-level-1 ((t (:inherit variable-pitch :weight bold :height 1.2))))
+ '(org-level-2 ((t (:inherit variable-pitch :weight bold :height 1.15))))
+ '(org-level-3 ((t (:inherit variable-pitch :weight bold :height 1.1))))
+ '(org-level-4 ((t (:inherit variable-pitch :weight bold :height 1.05))))
+ '(org-level-5 ((t (:inherit variable-pitch :weight bold))))
+ '(org-level-6 ((t (:inherit variable-pitch :weight bold))))
+ '(org-level-7 ((t (:inherit variable-pitch :weight bold))))
+ '(org-level-8 ((t (:inherit variable-pitch :weight bold))))
+ '(org-meta-line ((t (:inherit (font-lock-comment-face fixed-pitch)))))
+ '(org-property-value ((t (:inherit fixed-pitch))))
+ '(org-special-keyword ((t (:inherit (font-lock-comment-face fixed-pitch)))))
+ '(org-table ((t (:inherit fixed-pitch))))
+ '(org-tag ((t (:inherit (shadow fixed-pitch) :weight bold))))
+ '(org-verbatim ((t (:inherit (shadow fixed-pitch))))))
+#+end_src
+
+* Font Configuration
+Configure the default monospace font (used for code) and variable-pitch font
+(used for documentation and org-mode prose).
+
+#+begin_src emacs-lisp
+;; Font configuration
+(set-face-attribute 'default nil :font "Monaco" :height 150)
+
+;; Variable-pitch font for documentation
+(set-face-attribute 'variable-pitch nil :family "Source Sans 3" :height 1.1)
+#+end_src
+
+* Evil Mode and Keybindings
+
+** Command Logging
+A useful debugging tool to see what commands are being executed.
+
+#+begin_src emacs-lisp
+;; Command logging for debugging
+(use-package command-log-mode)
+#+end_src
+
+** Evil Mode Setup
+Evil mode provides comprehensive Vim emulation in Emacs. We set =evil-want-keybinding= to nil
+because we'll use =evil-collection= to provide better integration with Emacs modes.
+
+#+begin_src emacs-lisp
+;; Evil mode - Vim keybindings
+(unless (package-installed-p 'evil)
+  (package-install 'evil))
+
+;; Must be set before loading Evil
+(defvar evil-want-keybinding)
+(setq evil-want-keybinding nil)
+
+(require 'evil)
+(evil-mode 1)
+#+end_src
+
+** Evil Collection
+Provides Evil-friendly keybindings for many Emacs modes. We exclude org-mode from
+automatic initialization so we can configure it manually later.
+
+#+begin_src emacs-lisp
+;; Evil Collection - Evil bindings for various modes
+(use-package evil-collection
+  :after evil
+  :ensure t
+  :config
+  ;; Don't initialize org mode here - it will be initialized after org is loaded
+  (setq evil-collection-mode-list (remove 'org evil-collection-mode-list))
+  (evil-collection-init))
+#+end_src
+
+** Undo Tree
+Provides a visual tree-based undo system that's more powerful than linear undo/redo.
+This integrates perfectly with Evil mode's undo behavior.
+
+#+begin_src emacs-lisp
+;; Undo tree for Evil
+(use-package undo-tree
+  :ensure t
+  :after evil
+  :diminish
+  :config
+  (evil-set-undo-system 'undo-tree)
+  (global-undo-tree-mode 1)
+  (setq undo-tree-history-directory-alist '(("." . "~/.emacs.d/undo"))))
+#+end_src
+
+** Window Resizing Functions
+Custom functions for intuitive window resizing with repeatable keys.
+After triggering the resize, you can keep pressing [ or ] to continue resizing.
+
+#+begin_src emacs-lisp
+;; Window resizing functions
+(defun custom/window-expand-repeatedly ()
+  "Expand the window horizontally.  Continue expanding while ] is pressed."
+  (interactive)
+  (enlarge-window-horizontally 3)
+  (set-transient-map
+   (let ((map (make-sparse-keymap)))
+     (define-key map (kbd "]")
+                 (lambda ()
+                   (interactive)
+                   (enlarge-window-horizontally 3)
+                   (message "Window width: %s" (window-width))))
+     (define-key map (kbd "[")
+                 (lambda ()
+                   (interactive)
+                   (shrink-window-horizontally 3)
+                   (message "Window width: %s" (window-width))))
+     map)
+   t
+   (lambda () (message "Window resizing done. Width: %s" (window-width)))))
+
+(defun custom/window-shrink-repeatedly ()
+  "Shrink the window horizontally.  Continue expanding while [ is pressed."
+  (interactive)
+  (shrink-window-horizontally 3)
+  (set-transient-map
+   (let ((map (make-sparse-keymap)))
+     (define-key map (kbd "[")
+                 (lambda ()
+                   (interactive)
+                   (shrink-window-horizontally 3)
+                   (message "Window width: %s" (window-width))))
+     (define-key map (kbd "[")
+                 (lambda ()
+                   (interactive)
+                   (shrink-window-horizontally 3)
+                   (message "Window width: %s" (window-width))))
+     map)
+   t
+   (lambda () (message "Window resizing done. Width: %s" (window-width)))))
+#+end_src
+
+** General.el Keybindings
+General.el provides a flexible way to define keybindings. We create a leader key system
+similar to Spacemacs/Doom Emacs where SPC is the leader key in normal mode, and C-SPC
+works globally in all modes.
+
+#+begin_src emacs-lisp
+;; General.el for keybindings
+(use-package general
+  :ensure t
+  :demand t
+  :preface
+  (eval-when-compile (require 'general))
+  (with-no-warnings
+    ;; Main leader key: SPC in normal mode, C-SPC globally
+    (general-create-definer my-leader-def
+      :states '(normal insert visual emacs motion)
+      :keymaps 'override
+      :prefix "SPC"
+      :global-prefix "C-SPC")
+
+    ;; Local leader for mode-specific commands
+    (general-create-definer my-local-leader-def
+      :states '(normal insert visual emacs motion)
+      :keymaps 'override
+      :prefix "SPC m"
+      :global-prefix "C-SPC m"))
+  :config
+  (general-evil-setup t)
+
+  ;; Global keybindings similar to Doom Emacs
+  (my-leader-def
+    "SPC" 'execute-extended-command
+    ":" 'eval-expression
+
+    ;; Files
+    "f" '(:ignore t :which-key "files")
+    "ff" 'find-file
+    "fr" 'recentf-open-files
+    "fs" 'save-buffer
+    "fS" 'write-file
+    "fp" 'project-find-file
+
+    ;; Buffers
+    "b" '(:ignore t :which-key "buffers")
+    "bb" 'switch-to-buffer
+    "bd" 'kill-current-buffer
+    "bn" 'next-buffer
+    "bp" 'previous-buffer
+    "bR" 'revert-buffer
+    "bs" 'save-buffer
+
+    ;; Windows
+    "w" '(:ignore t :which-key "windows")
+    "wl" 'windmove-right
+    "wh" 'windmove-left
+    "wk" 'windmove-up
+    "wj" 'windmove-down
+    "w/" 'split-window-right
+    "w-" 'split-window-below
+    "wd" 'delete-window
+    "wD" 'delete-other-windows
+    "w=" 'balance-windows
+    "w]" 'custom/window-expand-repeatedly
+    "w[" 'custom/window-shrink-repeatedly
+
+    ;; Help/Documentation
+    "h" '(:ignore t :which-key "help")
+    "hf" 'helpful-callable
+    "hF" 'helpful-function
+    "hv" 'helpful-variable
+    "hk" 'helpful-key
+    "hK" 'describe-keymap
+    "hp" 'helpful-at-point
+    "hm" 'describe-mode
+    "h." 'display-local-help
+
+    ;; Search
+    "s" '(:ignore t :which-key "search")
+    "ss" 'swiper
+    "sS" 'swiper-all
+    "sg" 'counsel-grep-or-swiper
+    "sr" 'counsel-rg
+
+    ;; LSP
+    "l" '(:ignore t :which-key "lsp")
+    "la" 'lsp-execute-code-action
+    "lf" 'lsp-format-buffer
+    "lF" 'lsp-format-region
+    "lr" 'lsp-rename
+    "lD" 'lsp-find-definition
+    "ld" 'lsp-find-declaration
+    "li" 'lsp-find-implementation
+    "lt" 'lsp-find-type-definition
+    "lR" 'lsp-find-references
+    "le" 'flycheck-list-errors
+
+    ;; Git
+    "g" '(:ignore t :which-key "git")
+    "gs" 'magit-status
+    "gb" 'magit-blame
+    "gl" 'magit-log
+
+    ;; Org mode
+    "o" '(:ignore t :which-key "org")
+    "oa" 'org-agenda
+    "oc" 'org-capture
+    "ol" 'org-store-link
+
+    ;; Toggle
+    "t" '(:ignore t :which-key "toggle")
+    "tt" 'treemacs
+    "tl" 'display-line-numbers-mode
+    "tw" 'whitespace-mode
+    "tf" 'flycheck-mode
+
+    ;; Quit
+    "q" '(:ignore t :which-key "quit")
+    "qq" 'save-buffers-kill-terminal
+    "qQ" 'kill-emacs))
+#+end_src
+
+** LSP Keybindings
+In LSP-enabled buffers, pressing K in normal mode shows documentation for the symbol at point.
+
+#+begin_src emacs-lisp
+;; LSP mode-specific keybindings
+;; Shift+K to show documentation in LSP buffers
+(with-eval-after-load 'lsp-mode
+  (evil-define-key 'normal lsp-mode-map (kbd "K") 'lsp-describe-thing-at-point))
+#+end_src
+
+* Completion Framework
+
+** Which-Key
+Shows available keybindings in a popup when you pause typing a key sequence.
+This is extremely helpful for discovering commands and remembering keybindings.
+
+#+begin_src emacs-lisp
+;; Which-key - Shows available keybindings
+(use-package which-key
+  :ensure t
+  :diminish which-key-mode
+  :config
+  (which-key-mode)
+  (setq which-key-idle-delay 0.3)
+  (setq which-key-popup-type 'minibuffer)
+  (setq which-key-show-early-on-C-h t)
+  (setq which-key-idle-secondary-delay 0.05))
+#+end_src
+
+** Ivy/Counsel/Swiper
+An alternative completion framework to Helm. Ivy provides the completion mechanism,
+Counsel provides enhanced versions of common Emacs commands, and Swiper is a powerful search tool.
+
+#+begin_src emacs-lisp
+;; Ivy/Counsel/Swiper - Completion framework
+(use-package ivy
+  :diminish
+  :bind (("C-s" . swiper)
+         :map ivy-minibuffer-map
+         ("TAB" . ivy-alt-done)
+         ("C-l" . ivy-alt-done)
+         ("C-j" . ivy-next-line)
+         ("C-k" . ivy-previous-line)
+         :map ivy-switch-buffer-map
+         ("C-k" . ivy-previous-line)
+         ("C-l" . ivy-done)
+         ("C-d" . ivy-switch-buffer-kill)
+         :map ivy-reverse-i-search-map
+         ("C-k" . ivy-previous-line)
+         ("C-d" . ivy-reverse-i-search-kill))
+  :config
+  (ivy-mode 1)
+  (setq ivy-use-virtual-buffers t)
+  (setq ivy-count-format "(%d/%d) ")
+  ;; Remove initial ^ from M-x and other commands
+  (setq ivy-initial-inputs-alist nil))
+
+(use-package counsel
+  :ensure t
+  :bind (("M-x" . counsel-M-x)
+         ("C-x b" . counsel-ibuffer)
+         ("C-x C-f" . counsel-find-file)
+         :map minibuffer-local-map
+         ("C-r" . 'counsel-minibuffer-history))
+  :config
+  (counsel-mode 1))
+
+(use-package ivy-rich
+  :ensure t
+  :after ivy
+  :init
+  (ivy-rich-mode 1))
+#+end_src
+
+** Enhanced Completion
+Additional packages that enhance the completion experience.
+
+#+begin_src emacs-lisp
+;; Better minibuffer annotations
+(use-package marginalia
+  :ensure t
+  :init
+  (marginalia-mode))
+
+;; Orderless completion style
+(use-package orderless
+  :ensure t
+  :custom
+  (completion-styles '(orderless basic))
+  (completion-category-overrides '((file (styles basic partial-completion)))))
+
+;; Embark - Context actions
+(use-package embark
+  :ensure t
+  :bind
+  (("C-." . embark-act)
+   ("C-;" . embark-dwim)
+   ("C-h B" . embark-bindings)))
+
+(use-package embark-consult
+  :ensure t
+  :hook
+  (embark-collect-mode . consult-preview-at-point-mode))
+#+end_src
+
+* UI Enhancements
+
+** Doom Modeline
+A modern, attractive mode line that shows useful information like the current mode,
+git branch, LSP status, and more.
+
+#+begin_src emacs-lisp
+;; Doom Modeline
+(use-package doom-modeline
+  :ensure t
+  :init (doom-modeline-mode 1)
+  :custom
+  ((doom-modeline-height 15)
+   (doom-modeline-bar-width 3)
+   (doom-modeline-lsp t)
+   (doom-modeline-github nil)
+   (doom-modeline-minor-modes nil)
+   (doom-modeline-persp-name nil)
+   (doom-modeline-buffer-file-name-style 'truncate-except-project)))
+
+;; All-the-icons (required for doom-modeline)
+(use-package all-the-icons
+  :ensure t
+  :if (display-graphic-p))
+#+end_src
+
+** Treemacs
+A file tree sidebar for project navigation. Already configured in keybindings (SPC t t).
+
+#+begin_src emacs-lisp
+;; Treemacs - File tree
+(use-package treemacs
+  :ensure t
+  :defer t
+  :init
+  (defvar winum-keymap)
+  (with-eval-after-load 'winum
+    (define-key winum-keymap (kbd "M-0") #'treemacs-select-window))
+  :config
+  (progn
+    (setq treemacs-collapse-dirs                   (if treemacs-python-executable 3 0)
+          treemacs-deferred-git-apply-delay        0.5
+          treemacs-directory-name-transformer      #'identity
+          treemacs-display-in-side-window          t
+          treemacs-eldoc-display                   'simple
+          treemacs-file-event-delay                2000
+          treemacs-file-extension-regex            treemacs-last-period-regex-value
+          treemacs-file-follow-delay                0.2
+          treemacs-file-name-transformer           #'identity
+          treemacs-follow-after-init                t
+          treemacs-expand-after-init                t
+          treemacs-find-workspace-method           'find-for-file-or-pick-first
+          treemacs-git-command-pipe                ""
+          treemacs-goto-tag-strategy               'refetch-index
+          treemacs-header-scroll-indicators        '(nil . "^^^^^^")
+          treemacs-hide-dot-git-directory          t
+          treemacs-indentation                      2
+          treemacs-indentation-string              " "
+          treemacs-is-never-other-window           nil
+          treemacs-max-git-entries                  5000
+          treemacs-missing-project-action          'ask
+          treemacs-move-forward-on-expand          nil
+          treemacs-no-png-images                    nil
+          treemacs-no-delete-other-windows         t
+          treemacs-project-follow-cleanup          nil
+          treemacs-persist-file                     (expand-file-name ".cache/treemacs-persist" user-emacs-directory)
+          treemacs-position                         'left
+          treemacs-read-string-input                'from-child-frame
+          treemacs-recenter-distance                0.1
+          treemacs-recenter-after-file-follow      nil
+          treemacs-recenter-after-tag-follow       nil
+          treemacs-recenter-after-project-jump     'always
+          treemacs-recenter-after-project-expand   'on-distance
+          treemacs-litter-directories              '("/node_modules" "/.venv" "/.cask")
+          treemacs-project-follow-into-home        nil
+          treemacs-show-cursor                      nil
+          treemacs-show-hidden-files                t
+          treemacs-silent-filewatch                 nil
+          treemacs-silent-refresh                   nil
+          treemacs-sorting                          'alphabetic-asc
+          treemacs-select-when-already-in-treemacs 'move-back
+          treemacs-space-between-root-nodes        t
+          treemacs-tag-follow-cleanup               t
+          treemacs-tag-follow-delay                 1.5
+          treemacs-text-scale                       nil
+          treemacs-user-mode-line-format           nil
+          treemacs-user-header-line-format         nil
+          treemacs-wide-toggle-width                70
+          treemacs-width                            35
+          treemacs-width-increment                  1
+          treemacs-width-is-initially-locked       t
+          treemacs-workspace-switch-cleanup        nil)))
+
+(use-package treemacs-evil
+  :after (treemacs evil)
+  :ensure t)
+
+(use-package treemacs-projectile
+  :after (treemacs projectile)
+  :ensure t)
+
+(use-package treemacs-magit
+  :after (treemacs magit)
+  :ensure t)
+#+end_src
+
+* Org Mode Configuration
+
+Configure Org mode for note-taking, document authoring, and literate programming.
+
+** Org Mode Core Settings
+LaTeX preview settings for mathematical equations and additional org-mode features.
+
+#+begin_src emacs-lisp
+;; Org mode configuration
+(use-package org
+  :ensure t
+  :defer t
+  :config
+  ;; LaTeX preview settings
+  (setq org-startup-with-latex-preview t)
+  (add-hook 'org-mode-hook
+            (lambda ()
+              (setq org-format-latex-options
+                    (plist-put org-format-latex-options :scale 2.0))))
+  (setq org-preview-latex-process-alist
+        '((dvisvgm :programs ("latex" "dvisvgm")
+           :description "dvi > svg"
+           :message "you need to install the programs: latex and dvisvgm."
+           :image-input-type "dvi"
+           :image-output-type "svg"
+           :image-size-adjust (1.7 . 1.5)
+           :latex-compiler ("latex -interaction nonstopmode -output-directory %o %f")
+           :image-converter ("dvisvgm %f -n -b min -c %S --currentcolor -o %O"))))
+
+  (setq org-latex-packages-alist
+        '(("" "tikz" t)
+          ("" "tikz-cd" t)))
+
+  (setq org-preview-latex-default-process 'dvisvgm)
+
+  ;; Enable LaTeX code block evaluation
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((latex . t)))
+
+  (setq org-log-done 'time)
+
+  ;; Additional org settings
+  (setq org-ellipsis " ▾")
+  (setq org-hide-emphasis-markers t)
+
+  ;; Set up evil-collection for org mode after org is loaded
+  (when (fboundp 'evil-collection-org-setup)
+    (evil-collection-org-setup)))
+#+end_src
+
+** Org Mode Enhancements
+Additional packages to enhance the org-mode experience.
+
+#+begin_src emacs-lisp
+;; Org bullets for prettier org mode
+(use-package org-bullets
+  :ensure t
+  :after org
+  :hook (org-mode . org-bullets-mode))
+
+;; Htmlize for syntax highlighting in HTML exports
+(use-package htmlize
+  :ensure t
+  :after org)
+#+end_src
+
+* Claude Code Integration
+
+** Dependencies
+Claude Code requires several packages to function properly. We install these first.
+
+#+begin_src emacs-lisp
+;; Transient for menu interface
+(use-package transient)
+
+;; Markdown mode for prompt files
+(use-package markdown-mode
+  :config
+  (setq markdown-command '("pandoc" "--from=markdown" "--to=html5")))
+
+;; VTerm for terminal emulation
+(use-package vterm)
+#+end_src
+
+** Monet IDE Integration
+Monet provides IDE-like features for Emacs integration with Claude Code.
+
+#+begin_src emacs-lisp
+;; Monet for IDE integration
+(use-package monet
+  :vc (:url "https://github.com/stevemolitor/monet" :rev :newest))
+#+end_src
+
+** Claude Code Configuration
+Configure Claude Code with Monet integration. The main interface is accessed via C-c c,
+which opens a transient menu with all available commands.
+
+Main commands:
+- =claude-code-run=: Start a Claude Code session in the current project
+- =claude-code-transient=: Open the command menu (bound to C-c c)
+- =claude-code-send-region=: Send selected region to Claude
+- =claude-code-switch-to-buffer=: Switch to the Claude Code buffer
+
+#+begin_src emacs-lisp
+;; Claude Code
+(use-package claude-code
+  :after (transient markdown-mode vterm)
+  :demand t
+  :config
+  ;; Optional IDE integration with Monet
+  (when (featurep 'monet)
+    (add-hook 'claude-code-process-environment-functions #'monet-start-server-function)
+    (monet-mode 1))
+
+  :bind (("C-c c" . claude-code-transient)))
+#+end_src
+
+* Development Tools
+
+** Company Mode
+Company provides completion as you type for code, text, and more.
+Configure it to work well with LSP and add a graphical popup for completions.
+
+#+begin_src emacs-lisp
+;; Company - Completion at point
+(use-package company
+  :ensure t
+  :config
+  (global-company-mode)
+  :bind (:map company-active-map
+         ("<tab>" . company-complete-selection))
+  :custom
+  (company-minimum-prefix-length 1)
+  (company-idle-delay 0.0)
+  (company-tooltip-align-annotations t))
+
+(use-package company-box
+  :ensure t
+  :hook (company-mode . company-box-mode))
+#+end_src
+
+** LSP Mode
+Language Server Protocol support provides IDE-like features (autocomplete, go-to-definition,
+refactoring) for many programming languages. This configuration includes support for
+Python (pyright + ruff), LaTeX, TypeScript, JavaScript, Rust, C/C++, and more.
+
+#+begin_src emacs-lisp
+;; LSP Mode - Language Server Protocol support
+(use-package lsp-mode
+  :ensure t
+  :commands (lsp lsp-deferred)
+  :hook ((python-mode . lsp-deferred)
+         (python-ts-mode . lsp-deferred)
+         (latex-mode . lsp-deferred)
+         (tex-mode . lsp-deferred)
+         (typescript-mode . lsp-deferred)
+         (javascript-mode . lsp-deferred)
+         (web-mode . lsp-deferred)
+         (rust-mode . lsp-deferred)
+         (c-mode . lsp-deferred)
+         (c++-mode . lsp-deferred))
+  :init
+  (setq lsp-keymap-prefix "C-c l")
+  :config
+  (when (fboundp 'lsp-enable-which-key-integration)
+    (lsp-enable-which-key-integration t))
+  (setq lsp-idle-delay 0.6)
+  (setq lsp-log-io nil)
+  (setq lsp-completion-enable t)
+  (setq lsp-signature-auto-activate t)
+  (setq lsp-signature-render-documentation t)
+  (setq lsp-eldoc-enable-hover t)
+  (setq lsp-eldoc-render-all nil)
+  (setq lsp-headerline-breadcrumb-enable t)
+  (setq lsp-semantic-tokens-enable t)
+  (setq lsp-enable-folding t)
+  (setq lsp-enable-imenu t)
+  (setq lsp-enable-snippet t)
+  (setq read-process-output-max (* 1024 1024))) ;; 1MB
+
+;; LSP UI - UI enhancements for LSP
+(use-package lsp-ui
+  :ensure t
+  :hook (lsp-mode . lsp-ui-mode)
+  :custom
+  (lsp-ui-doc-position 'bottom)
+  (lsp-ui-doc-show-with-cursor t)
+  (lsp-ui-doc-delay 0.5)
+  (lsp-ui-sideline-enable t)
+  (lsp-ui-sideline-show-hover t)
+  (lsp-ui-sideline-show-diagnostics t)
+  (lsp-ui-sideline-show-code-actions t)
+  (lsp-ui-peek-enable t)
+  :bind (:map lsp-ui-mode-map
+         ("C-c l d" . lsp-ui-doc-toggle)
+         ("C-c l p" . lsp-ui-peek-find-references)
+         ("C-c l P" . lsp-ui-peek-find-definitions)
+         ("C-c l i" . lsp-ui-peek-find-implementation)))
+
+;; LSP Ivy integration
+(use-package lsp-ivy
+  :ensure t
+  :commands lsp-ivy-workspace-symbol)
+
+;; LSP Treemacs integration
+(use-package lsp-treemacs
+  :ensure t
+  :commands lsp-treemacs-errors-list
+  :config
+  (lsp-treemacs-sync-mode 1))
+#+end_src
+
+** Python LSP Configuration
+Configure Python development with pyright for type checking and ruff for linting/formatting.
+You'll need to install these tools: =pip install pyright ruff=
+
+#+begin_src emacs-lisp
+;; Pyright - Python type checker and LSP
+(use-package lsp-pyright
+  :ensure t
+  :custom
+  ;; Use pyright as the primary Python LSP server
+  (lsp-pyright-langserver-command "pyright")
+  ;; Disable type checking overlaps if you prefer ruff for linting
+  (lsp-pyright-disable-language-services nil)
+  (lsp-pyright-disable-organize-imports nil)
+  :hook (python-mode . (lambda ()
+                          (require 'lsp-pyright)
+                          (lsp-deferred))))
+
+;; Ruff - Modern Python linter and formatter
+(with-eval-after-load 'lsp-mode
+  ;; Disable pylsp to avoid conflicts (we're using pyright instead)
+  (setq lsp-disabled-clients '(pylsp))
+
+  ;; Enable ruff server (requires ruff >= 0.5.3)
+  ;; This runs alongside pyright as an add-on server
+  (setq lsp-ruff-lsp-server-command '("ruff" "server"))
+
+  ;; Configure which servers to use for Python
+  (defvar lsp-enabled-clients)
+  (add-to-list 'lsp-enabled-clients 'pyright)
+  (add-to-list 'lsp-enabled-clients 'ruff))
+#+end_src
+
+** LaTeX Configuration
+AUCTeX provides enhanced LaTeX editing with LSP support.
+
+#+begin_src emacs-lisp
+;; LaTeX configuration
+(use-package auctex
+  :ensure t
+  :defer t
+  :hook (LaTeX-mode . lsp-deferred)
+  :config
+  ;; Silence byte-compiler and set AUCTeX variables after load
+  (defvar TeX-auto-save)
+  (defvar TeX-parse-self)
+  (defvar TeX-PDF-mode)
+  (with-eval-after-load 'tex
+    (setq TeX-auto-save t)
+    (setq TeX-parse-self t)
+    (setq-default TeX-master nil)
+    (setq TeX-PDF-mode t)))
+#+end_src
+
+** Projectile
+Projectile provides project-level operations like finding files, searching, and compiling.
+It automatically detects project roots (git, etc.).
+
+#+begin_src emacs-lisp
+;; Projectile for project management
+(use-package projectile
+  :init
+  (setq projectile-indexing-method 'alien)
+  (setq projectile-use-git-grep t)
+  (setq projectile-tags-command
+        "/usr/local/bin/ctags --exclude=node_modules --exclude=admin --exclude=.git --exclude=frontend --exclude=home --exclude=**/*.js -Re -f \"%s\" %s")
+  :config
+  (projectile-global-mode))
+#+end_src
+
+** Helm
+Helm provides an incremental completion and selection framework. It replaces many
+built-in Emacs interfaces with a more powerful and consistent experience.
+
+Note: Disabled in favor of Ivy/Counsel/Swiper to avoid conflicts.
+
+#+begin_src emacs-lisp
+;; Helm - DISABLED (conflicts with Ivy/Counsel)
+;; (use-package helm
+;;   :ensure t
+;;   :bind (("M-x" . helm-M-x))
+;;   :config
+;;   (helm-mode 1))
+
+;; Helm-Projectile integration - DISABLED
+;; (use-package helm-projectile
+;;   :init
+;;   (setq helm-projectile-fuzzy-match nil)
+;;   :config
+;;   (helm-projectile-on))
+#+end_src
+
+** Flycheck
+Flycheck provides on-the-fly syntax checking for many languages.
+
+#+begin_src emacs-lisp
+;; Flycheck for syntax checking
+(use-package flycheck
+  :config
+  ;; Disable unwanted checkers
+  (setq-default flycheck-disabled-checkers
+                (append flycheck-disabled-checkers
+                        '(javascript-jshint)
+                        '(ruby-rubylint)
+                        '(json-jsonlist)
+                        '(emacs-lisp-checkdoc)))
+  (global-flycheck-mode))
+#+end_src
+
+** Magit
+Magit is a comprehensive Git interface for Emacs. It's often considered the best
+Git interface available in any editor.
+
+#+begin_src emacs-lisp
+;; Magit for Git
+(use-package magit
+  :bind (("C-c m s" . magit-status)))
+#+end_src
+
+* Performance Monitoring
+Display startup time and garbage collection statistics on startup.
+
+#+begin_src emacs-lisp
+;; Performance check
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            (message "Emacs loaded in %s with %d garbage collections."
+                     (format "%.2f seconds"
+                             (float-time
+                              (time-subtract after-init-time before-init-time)))
+                     gcs-done)))
+#+end_src
+
+* Footer
+#+begin_src emacs-lisp
+(provide 'config)
+;;; config.el ends here
+#+end_src
