@@ -15,10 +15,13 @@ documentation about what the configuration does, followed by the actual Emacs Li
 The configuration is organized into logical sections:
 - Package management and bootstrapping
 - Core UI and visual settings
-- Font configuration
 - Evil mode (Vim emulation) and keybindings
-- Development tools (LSP, completion, project management)
-- Claude Code integration
+- Completion and navigation frameworks
+- Git integration (Magit)
+- Org mode configuration
+- LSP and language-specific support
+- Tree-sitter configuration
+- Project management tools
 
 * Bootstrap and Package Management
 ** File Header
@@ -29,7 +32,7 @@ Every Emacs Lisp file should start with proper headers for documentation and to 
 
 ;;; Commentary:
 ;; A comprehensive Emacs configuration with Evil mode, LSP support,
-;; and keybindings similar to Doom Emacs.
+;; and keybindings similar to Spacemacs.
 ;; This file is generated from init.org - do not edit directly!
 
 ;;; Code:
@@ -76,7 +79,8 @@ keybindings, and hooks all in one declaration. This improves startup time and or
 (require 'use-package)
 (setq use-package-always-ensure t)
 #+end_src
-* Shell Environment Replication
+
+** Shell Environment Replication
 Replicate the Shell Environment variables within Emacs.
 #+BEGIN_SRC emacs-lisp
   (use-package exec-path-from-shell)
@@ -153,28 +157,6 @@ Display line numbers globally, but disable them in certain modes where they don'
 (set-face-attribute 'line-number-current-line nil :foreground "#FFA500")
 #+end_src
 
-** Fill Column Indicator
-Show a vertical line at 80 characters to help maintain code width standards.
-This is disabled in modes where line length doesn't matter.
-
-#+begin_src emacs-lisp
-;; 80 character line limit indicator
-(setq-default fill-column 80)
-(setq-default display-fill-column-indicator-character ?│) ; Use solid line character
-(global-display-fill-column-indicator-mode 1)
-
-;; Customize the color of the fill column indicator
-(set-face-attribute 'fill-column-indicator nil :foreground "#555555")
-
-;; Disable in certain modes
-(dolist (mode '(org-mode-hook
-                term-mode-hook
-                shell-mode-hook
-                eshell-mode-hook
-                treemacs-mode-hook))
-  (add-hook mode (lambda () (display-fill-column-indicator-mode 0))))
-#+end_src
-
 ** Recent Files
 Keep track of recently opened files for quick access.
 
@@ -218,12 +200,8 @@ We define our customizations inline in this literate config instead of loading f
 Configure package-specific settings and behaviors.
 
 #+begin_src emacs-lisp
-;; Helm configuration
-(setq helm-minibuffer-history-key "M-p")
-
 ;; Package management
 (setq package-selected-packages nil)
-(setq package-vc-selected-packages '((monet :url "https://github.com/stevemolitor/monet")))
 #+end_src
 
 *** Org Mode Custom Faces
@@ -258,7 +236,7 @@ like formatted documents with proper typography while keeping code blocks in mon
  '(org-verbatim ((t (:inherit (shadow fixed-pitch))))))
 #+end_src
 
-* Font Configuration
+** Font Configuration
 Configure the default monospace font (used for code) and variable-pitch font
 (used for documentation and org-mode prose).
 
@@ -268,6 +246,30 @@ Configure the default monospace font (used for code) and variable-pitch font
 
 ;; Variable-pitch font for documentation
 (set-face-attribute 'variable-pitch nil :family "Source Sans 3" :height 1.1)
+#+end_src
+
+** Doom Modeline
+A modern, attractive mode line that shows useful information like the current mode,
+git branch, LSP status, and more.
+
+#+begin_src emacs-lisp
+;; Doom Modeline
+(use-package doom-modeline
+  :ensure t
+  :init (doom-modeline-mode 1)
+  :custom
+  ((doom-modeline-height 15)
+   (doom-modeline-bar-width 3)
+   (doom-modeline-lsp t)
+   (doom-modeline-github nil)
+   (doom-modeline-minor-modes nil)
+   (doom-modeline-persp-name nil)
+   (doom-modeline-buffer-file-name-style 'truncate-except-project)))
+
+;; All-the-icons (required for doom-modeline)
+(use-package all-the-icons
+  :ensure t
+  :if (display-graphic-p))
 #+end_src
 
 * Evil Mode and Keybindings
@@ -404,7 +406,7 @@ works globally in all modes.
   :config
   (general-evil-setup t)
 
-  ;; Global keybindings similar to Doom Emacs
+  ;; Global keybindings similar to Spacemacs
   (my-leader-def
     "SPC" 'execute-extended-command
     ":" 'eval-expression
@@ -510,7 +512,7 @@ In LSP-enabled buffers, pressing K in normal mode shows documentation for the sy
   (evil-define-key 'normal lsp-mode-map (kbd "K") 'lsp-describe-thing-at-point))
 #+end_src
 
-* Completion Framework
+* Completion and Navigation
 
 ** Which-Key
 Shows available keybindings in a popup when you pause typing a key sequence.
@@ -605,110 +607,47 @@ Additional packages that enhance the completion experience.
   (embark-collect-mode . consult-preview-at-point-mode))
 #+end_src
 
-* UI Enhancements
-
-** Doom Modeline
-A modern, attractive mode line that shows useful information like the current mode,
-git branch, LSP status, and more.
+** Helpful
+Enhanced help buffers with more contextual information.
 
 #+begin_src emacs-lisp
-;; Doom Modeline
-(use-package doom-modeline
-  :ensure t
-  :init (doom-modeline-mode 1)
-  :custom
-  ((doom-modeline-height 15)
-   (doom-modeline-bar-width 3)
-   (doom-modeline-lsp t)
-   (doom-modeline-github nil)
-   (doom-modeline-minor-modes nil)
-   (doom-modeline-persp-name nil)
-   (doom-modeline-buffer-file-name-style 'truncate-except-project)))
-
-;; All-the-icons (required for doom-modeline)
-(use-package all-the-icons
-  :ensure t
-  :if (display-graphic-p))
+;; Helpful - Better help buffers
+(use-package helpful
+  :ensure t)
 #+end_src
 
-** Treemacs
-A file tree sidebar for project navigation. Already configured in keybindings (SPC t t).
+** Company Mode
+Company provides completion as you type for code, text, and more.
+Configure it to work well with LSP and add a graphical popup for completions.
 
 #+begin_src emacs-lisp
-;; Treemacs - File tree
-(use-package treemacs
+;; Company - Completion at point
+(use-package company
   :ensure t
-  :defer t
-  :init
-  (defvar winum-keymap)
-  (with-eval-after-load 'winum
-    (define-key winum-keymap (kbd "M-0") #'treemacs-select-window))
   :config
-  (progn
-    (setq treemacs-collapse-dirs                   (if treemacs-python-executable 3 0)
-          treemacs-deferred-git-apply-delay        0.5
-          treemacs-directory-name-transformer      #'identity
-          treemacs-display-in-side-window          t
-          treemacs-eldoc-display                   'simple
-          treemacs-file-event-delay                2000
-          treemacs-file-extension-regex            treemacs-last-period-regex-value
-          treemacs-file-follow-delay                0.2
-          treemacs-file-name-transformer           #'identity
-          treemacs-follow-after-init                t
-          treemacs-expand-after-init                t
-          treemacs-find-workspace-method           'find-for-file-or-pick-first
-          treemacs-git-command-pipe                ""
-          treemacs-goto-tag-strategy               'refetch-index
-          treemacs-header-scroll-indicators        '(nil . "^^^^^^")
-          treemacs-hide-dot-git-directory          t
-          treemacs-indentation                      2
-          treemacs-indentation-string              " "
-          treemacs-is-never-other-window           nil
-          treemacs-max-git-entries                  5000
-          treemacs-missing-project-action          'ask
-          treemacs-move-forward-on-expand          nil
-          treemacs-no-png-images                    nil
-          treemacs-no-delete-other-windows         t
-          treemacs-project-follow-cleanup          nil
-          treemacs-persist-file                     (expand-file-name ".cache/treemacs-persist" user-emacs-directory)
-          treemacs-position                         'left
-          treemacs-read-string-input                'from-child-frame
-          treemacs-recenter-distance                0.1
-          treemacs-recenter-after-file-follow      nil
-          treemacs-recenter-after-tag-follow       nil
-          treemacs-recenter-after-project-jump     'always
-          treemacs-recenter-after-project-expand   'on-distance
-          treemacs-litter-directories              '("/node_modules" "/.venv" "/.cask")
-          treemacs-project-follow-into-home        nil
-          treemacs-show-cursor                      nil
-          treemacs-show-hidden-files                t
-          treemacs-silent-filewatch                 nil
-          treemacs-silent-refresh                   nil
-          treemacs-sorting                          'alphabetic-asc
-          treemacs-select-when-already-in-treemacs 'move-back
-          treemacs-space-between-root-nodes        t
-          treemacs-tag-follow-cleanup               t
-          treemacs-tag-follow-delay                 1.5
-          treemacs-text-scale                       nil
-          treemacs-user-mode-line-format           nil
-          treemacs-user-header-line-format         nil
-          treemacs-wide-toggle-width                70
-          treemacs-width                            35
-          treemacs-width-increment                  1
-          treemacs-width-is-initially-locked       t
-          treemacs-workspace-switch-cleanup        nil)))
+  (global-company-mode)
+  :bind (:map company-active-map
+         ("<tab>" . company-complete-selection))
+  :custom
+  (company-minimum-prefix-length 1)
+  (company-idle-delay 0.0)
+  (company-tooltip-align-annotations t))
 
-(use-package treemacs-evil
-  :after (treemacs evil)
-  :ensure t)
+(use-package company-box
+  :ensure t
+  :hook (company-mode . company-box-mode))
+#+end_src
 
-(use-package treemacs-projectile
-  :after (treemacs projectile)
-  :ensure t)
+* Git Integration
 
-(use-package treemacs-magit
-  :after (treemacs magit)
-  :ensure t)
+** Magit
+Magit is a comprehensive Git interface for Emacs. It's often considered the best
+Git interface available in any editor.
+
+#+begin_src emacs-lisp
+;; Magit for Git
+(use-package magit
+  :bind (("C-c m s" . magit-status)))
 #+end_src
 
 * Org Mode Configuration
@@ -778,155 +717,96 @@ Additional packages to enhance the org-mode experience.
   :after org)
 #+end_src
 
-* Claude Code Integration
+* LSP and Language Support
 
-** Dependencies
-Claude Code requires several packages to function properly. We install these first.
-
-#+begin_src emacs-lisp
-;; Transient for menu interface
-(use-package transient)
-
-;; Markdown mode for prompt files
-(use-package markdown-mode
-  :config
-  (setq markdown-command '("pandoc" "--from=markdown" "--to=html5")))
-
-;; VTerm for terminal emulation
-(use-package vterm)
-#+end_src
-
-** Monet IDE Integration
-Monet provides IDE-like features for Emacs integration with Claude Code.
-
-#+begin_src emacs-lisp
-;; Monet for IDE integration
-(use-package monet
-  :vc (:url "https://github.com/stevemolitor/monet" :rev :newest))
-#+end_src
-
-** Claude Code Configuration
-Configure Claude Code with Monet integration. The main interface is accessed via C-c c,
-which opens a transient menu with all available commands.
-
-Main commands:
-- =claude-code-run=: Start a Claude Code session in the current project
-- =claude-code-transient=: Open the command menu (bound to C-c c)
-- =claude-code-send-region=: Send selected region to Claude
-- =claude-code-switch-to-buffer=: Switch to the Claude Code buffer
-
-#+begin_src emacs-lisp
-;; Claude Code
-(use-package claude-code
-  :after (transient markdown-mode vterm)
-  :demand t
-  :config
-  ;; Optional IDE integration with Monet
-  (when (featurep 'monet)
-    (add-hook 'claude-code-process-environment-functions #'monet-start-server-function)
-    (monet-mode 1))
-
-  :bind (("C-c c" . claude-code-transient)))
-#+end_src
-
-* Development Tools
-
-** Company Mode
-Company provides completion as you type for code, text, and more.
-Configure it to work well with LSP and add a graphical popup for completions.
-
-#+begin_src emacs-lisp
-;; Company - Completion at point
-(use-package company
-  :ensure t
-  :config
-  (global-company-mode)
-  :bind (:map company-active-map
-         ("<tab>" . company-complete-selection))
-  :custom
-  (company-minimum-prefix-length 1)
-  (company-idle-delay 0.0)
-  (company-tooltip-align-annotations t))
-
-(use-package company-box
-  :ensure t
-  :hook (company-mode . company-box-mode))
-#+end_src
-
-** LSP Mode
+** LSP Mode Core
 Language Server Protocol support provides IDE-like features (autocomplete, go-to-definition,
-refactoring) for many programming languages. This configuration includes support for
-Python (pyright + ruff), LaTeX, TypeScript, JavaScript, Rust, C/C++, Typst, and more.
+refactoring) for many programming languages.
 
 #+begin_src emacs-lisp
-  ;; LSP Mode - Language Server Protocol support
-  (use-package lsp-mode
-    :ensure t
-    :commands (lsp lsp-deferred)
-    :hook ((python-mode . lsp-deferred)
-           (python-ts-mode . lsp-deferred)
-           (latex-mode . lsp-deferred)
-           (tex-mode . lsp-deferred)
-           (typescript-mode . lsp-deferred)
-           (javascript-mode . lsp-deferred)
-           (web-mode . lsp-deferred)
-           (rust-mode . lsp-deferred)
-           (c-mode . lsp-deferred)
-           (c++-mode . lsp-deferred)
-           (c-ts-mode . lsp-deferred)
-           (c++-ts-mode . lsp-deferred)
-           (typst-ts-mode . lsp-deferred))
-    :init
-    (setq lsp-keymap-prefix "C-c l")
-    :config
-    (when (fboundp 'lsp-enable-which-key-integration)
-      (lsp-enable-which-key-integration t))
-    (setq lsp-idle-delay 0.6)
-    (setq lsp-log-io nil)  ; Disable I/O logging for performance
-    (setq lsp-completion-enable t)
-    (setq lsp-signature-auto-activate t)
-    (setq lsp-signature-render-documentation t)
-    (setq lsp-eldoc-enable-hover t)
-    (setq lsp-eldoc-render-all nil)
-    (setq lsp-headerline-breadcrumb-enable t)
-    (setq lsp-semantic-tokens-enable t)
-    (setq lsp-enable-folding t)
-    (setq lsp-enable-imenu t)
-    (setq lsp-enable-snippet t)
-    (setq read-process-output-max (* 1024 1024))) ;; 1MB
+;; LSP Mode - Language Server Protocol support
+(use-package lsp-mode
+  :ensure t
+  :commands (lsp lsp-deferred)
+  :hook ((python-mode . lsp-deferred)
+         (python-ts-mode . lsp-deferred)
+         (latex-mode . lsp-deferred)
+         (tex-mode . lsp-deferred)
+         (c-mode . lsp-deferred)
+         (c++-mode . lsp-deferred)
+         (c-ts-mode . lsp-deferred)
+         (c++-ts-mode . lsp-deferred)
+         (typst-ts-mode . lsp-deferred)
+         (json-mode . lsp-deferred)
+         (json-ts-mode . lsp-deferred))
+  :init
+  (setq lsp-keymap-prefix "C-c l")
+  :config
+  (when (fboundp 'lsp-enable-which-key-integration)
+    (lsp-enable-which-key-integration t))
+  (setq lsp-idle-delay 0.6)
+  (setq lsp-log-io nil)  ; Disable I/O logging for performance
+  (setq lsp-completion-enable t)
+  (setq lsp-signature-auto-activate t)
+  (setq lsp-signature-render-documentation t)
+  (setq lsp-eldoc-enable-hover t)
+  (setq lsp-eldoc-render-all nil)
+  (setq lsp-headerline-breadcrumb-enable t)
+  (setq lsp-semantic-tokens-enable t)
+  (setq lsp-enable-folding t)
+  (setq lsp-enable-imenu t)
+  (setq lsp-enable-snippet t)
+  (setq read-process-output-max (* 1024 1024))) ;; 1MB
 
-  ;; LSP UI - UI enhancements for LSP
-  (use-package lsp-ui
-    :ensure t
-    :hook (lsp-mode . lsp-ui-mode)
-    :custom
-    (lsp-ui-doc-enable nil)  ; Disable doc popups for performance (use K instead)
-    (lsp-ui-doc-show-with-cursor nil)
-    (lsp-ui-sideline-enable nil)  ; Disable sideline for performance
-    (lsp-ui-sideline-show-hover nil)
-    (lsp-ui-sideline-show-diagnostics nil)
-    (lsp-ui-sideline-show-code-actions nil)
-    (lsp-ui-peek-enable t)  ; Keep peek for go-to-definition
-    :bind (:map lsp-ui-mode-map
-           ("C-c l d" . lsp-ui-doc-toggle)
-           ("C-c l p" . lsp-ui-peek-find-references)
-           ("C-c l P" . lsp-ui-peek-find-definitions)
-           ("C-c l i" . lsp-ui-peek-find-implementation)))
+;; LSP UI - UI enhancements for LSP
+(use-package lsp-ui
+  :ensure t
+  :hook (lsp-mode . lsp-ui-mode)
+  :custom
+  (lsp-ui-doc-enable nil)  ; Disable doc popups for performance (use K instead)
+  (lsp-ui-doc-show-with-cursor nil)
+  (lsp-ui-sideline-enable nil)  ; Disable sideline for performance
+  (lsp-ui-sideline-show-hover nil)
+  (lsp-ui-sideline-show-diagnostics nil)
+  (lsp-ui-sideline-show-code-actions nil)
+  (lsp-ui-peek-enable t)  ; Keep peek for go-to-definition
+  :bind (:map lsp-ui-mode-map
+         ("C-c l d" . lsp-ui-doc-toggle)
+         ("C-c l p" . lsp-ui-peek-find-references)
+         ("C-c l P" . lsp-ui-peek-find-definitions)
+         ("C-c l i" . lsp-ui-peek-find-implementation)))
 
-  ;; LSP Ivy integration
-  (use-package lsp-ivy
-    :ensure t
-    :commands lsp-ivy-workspace-symbol)
+;; LSP Ivy integration
+(use-package lsp-ivy
+  :ensure t
+  :commands lsp-ivy-workspace-symbol)
 
-  ;; LSP Treemacs integration
-  (use-package lsp-treemacs
-    :ensure t
-    :commands lsp-treemacs-errors-list
-    :config
-    (lsp-treemacs-sync-mode 1))
+;; LSP Treemacs integration
+(use-package lsp-treemacs
+  :ensure t
+  :commands lsp-treemacs-errors-list
+  :config
+  (lsp-treemacs-sync-mode 1))
 #+end_src
 
-** Python LSP Configuration
+** Flycheck
+Flycheck provides on-the-fly syntax checking for many languages.
+
+#+begin_src emacs-lisp
+;; Flycheck for syntax checking
+(use-package flycheck
+  :config
+  ;; Disable unwanted checkers
+  (setq-default flycheck-disabled-checkers
+                (append flycheck-disabled-checkers
+                        '(javascript-jshint)
+                        '(ruby-rubylint)
+                        '(json-jsonlist)
+                        '(emacs-lisp-checkdoc)))
+  (global-flycheck-mode))
+#+end_src
+
+** Python Configuration
 Configure Python development with pyright for type checking and ruff for linting/formatting.
 You'll need to install these tools: =pip install pyright ruff=
 
@@ -1035,42 +915,6 @@ This configuration supports both regular modes (c-mode, c++-mode) and tree-sitte
     (add-to-list 'lsp-enabled-clients 'clangd)))
 #+end_src
 
-** Tree-sitter Auto
-Automatically install and manage tree-sitter grammars for various languages.
-This package will download and compile tree-sitter grammars as needed.
-
-NOTE: Emacs 30.1 expects tree-sitter ABI version 14. We pin Python, C, and C++
-grammars to v0.20.x for compatibility. Newer versions (v0.21+) use ABI 15 which
-causes version-mismatch errors.
-
-#+begin_src emacs-lisp
-;; Configure tree-sitter language sources before treesit-auto
-(with-eval-after-load 'treesit
-  ;; Set language sources with compatible versions
-  (setq treesit-language-source-alist
-        '((python . ("https://github.com/tree-sitter/tree-sitter-python" "v0.20.4" "src"))
-          (typescript . ("https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src"))
-          (tsx . ("https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src"))
-          (javascript . ("https://github.com/tree-sitter/tree-sitter-javascript" "master" "src"))
-          (json . ("https://github.com/tree-sitter/tree-sitter-json" "master" "src"))
-          (bash . ("https://github.com/tree-sitter/tree-sitter-bash" "master" "src"))
-          (css . ("https://github.com/tree-sitter/tree-sitter-css" "master" "src"))
-          (html . ("https://github.com/tree-sitter/tree-sitter-html" "master" "src"))
-          (yaml . ("https://github.com/tree-sitter/tree-sitter-yaml" "master" "src"))
-          (c . ("https://github.com/tree-sitter/tree-sitter-c" "v0.20.8" "src"))
-          (cpp . ("https://github.com/tree-sitter/tree-sitter-cpp" "v0.20.5" "src"))
-          (rust . ("https://github.com/tree-sitter/tree-sitter-rust" "master" "src")))))
-
-;; Tree-sitter auto installation
-(use-package treesit-auto
-  :ensure t
-  :custom
-  (treesit-auto-install 'prompt)
-  :config
-  (treesit-auto-add-to-auto-mode-alist 'all)
-  (global-treesit-auto-mode))
-#+end_src
-
 ** Typst Configuration
 Typst is a modern markup-based typesetting system. This configuration adds support
 for Typst with LSP integration using the tinymist language server.
@@ -1114,6 +958,45 @@ brew install tinymist
     :priority 0)))
 #+end_src
 
+** JSON Configuration
+Enable JSON support with tree-sitter.
+
+#+begin_src emacs-lisp
+;; JSON mode - tree-sitter will handle this automatically via treesit-auto
+;; LSP hook is already configured in lsp-mode section above
+#+end_src
+
+* Tree-sitter Configuration
+
+Tree-sitter provides fast, incremental parsing for syntax highlighting and code analysis.
+This configuration automatically manages tree-sitter grammars for the languages you use.
+
+NOTE: Emacs 30.1 expects tree-sitter ABI version 14. We pin Python, C, and C++
+grammars to v0.20.x for compatibility. Newer versions (v0.21+) use ABI 15 which
+causes version-mismatch errors.
+
+#+begin_src emacs-lisp
+;; Configure tree-sitter language sources
+(with-eval-after-load 'treesit
+  ;; Set language sources with compatible versions
+  (setq treesit-language-source-alist
+        '((python . ("https://github.com/tree-sitter/tree-sitter-python" "v0.20.4" "src"))
+          (json . ("https://github.com/tree-sitter/tree-sitter-json" "master" "src"))
+          (c . ("https://github.com/tree-sitter/tree-sitter-c" "v0.20.8" "src"))
+          (cpp . ("https://github.com/tree-sitter/tree-sitter-cpp" "v0.20.5" "src")))))
+
+;; Tree-sitter auto installation
+(use-package treesit-auto
+  :ensure t
+  :custom
+  (treesit-auto-install 'prompt)
+  :config
+  (treesit-auto-add-to-auto-mode-alist 'all)
+  (global-treesit-auto-mode))
+#+end_src
+
+* Project Management
+
 ** Projectile
 Projectile provides project-level operations like finding files, searching, and compiling.
 It automatically detects project roots (git, etc.).
@@ -1130,53 +1013,84 @@ It automatically detects project roots (git, etc.).
   (projectile-global-mode))
 #+end_src
 
-** Helm
-Helm provides an incremental completion and selection framework. It replaces many
-built-in Emacs interfaces with a more powerful and consistent experience.
-
-Note: Disabled in favor of Ivy/Counsel/Swiper to avoid conflicts.
+** Treemacs
+A file tree sidebar for project navigation.
 
 #+begin_src emacs-lisp
-;; Helm - DISABLED (conflicts with Ivy/Counsel)
-;; (use-package helm
-;;   :ensure t
-;;   :bind (("M-x" . helm-M-x))
-;;   :config
-;;   (helm-mode 1))
-
-;; Helm-Projectile integration - DISABLED
-;; (use-package helm-projectile
-;;   :init
-;;   (setq helm-projectile-fuzzy-match nil)
-;;   :config
-;;   (helm-projectile-on))
-#+end_src
-
-** Flycheck
-Flycheck provides on-the-fly syntax checking for many languages.
-
-#+begin_src emacs-lisp
-;; Flycheck for syntax checking
-(use-package flycheck
+;; Treemacs - File tree
+(use-package treemacs
+  :ensure t
+  :defer t
+  :init
+  (defvar winum-keymap)
+  (with-eval-after-load 'winum
+    (define-key winum-keymap (kbd "M-0") #'treemacs-select-window))
   :config
-  ;; Disable unwanted checkers
-  (setq-default flycheck-disabled-checkers
-                (append flycheck-disabled-checkers
-                        '(javascript-jshint)
-                        '(ruby-rubylint)
-                        '(json-jsonlist)
-                        '(emacs-lisp-checkdoc)))
-  (global-flycheck-mode))
-#+end_src
+  (progn
+    (setq treemacs-collapse-dirs                   (if treemacs-python-executable 3 0)
+          treemacs-deferred-git-apply-delay        0.5
+          treemacs-directory-name-transformer      #'identity
+          treemacs-display-in-side-window          t
+          treemacs-eldoc-display                   'simple
+          treemacs-file-event-delay                2000
+          treemacs-file-extension-regex            treemacs-last-period-regex-value
+          treemacs-file-follow-delay                0.2
+          treemacs-file-name-transformer           #'identity
+          treemacs-follow-after-init                t
+          treemacs-expand-after-init                t
+          treemacs-find-workspace-method           'find-for-file-or-pick-first
+          treemacs-git-command-pipe                ""
+          treemacs-goto-tag-strategy               'refetch-index
+          treemacs-header-scroll-indicators        '(nil . "^^^^^^")
+          treemacs-hide-dot-git-directory          t
+          treemacs-indentation                      2
+          treemacs-indentation-string              " "
+          treemacs-is-never-other-window           nil
+          treemacs-max-git-entries                  5000
+          treemacs-missing-project-action          'ask
+          treemacs-move-forward-on-expand          nil
+          treemacs-no-png-images                    nil
+          treemacs-no-delete-other-windows         t
+          treemacs-project-follow-cleanup          nil
+          treemacs-persist-file                     (expand-file-name ".cache/treemacs-persist" user-emacs-directory)
+          treemacs-position                         'left
+          treemacs-read-string-input                'from-child-frame
+          treemacs-recenter-distance                0.1
+          treemacs-recenter-after-file-follow      nil
+          treemacs-recenter-after-tag-follow       nil
+          treemacs-recenter-after-project-jump     'always
+          treemacs-recenter-after-project-expand   'on-distance
+          treemacs-litter-directories              '("/node_modules" "/.venv" "/.cask")
+          treemacs-project-follow-into-home        nil
+          treemacs-show-cursor                      nil
+          treemacs-show-hidden-files                t
+          treemacs-silent-filewatch                 nil
+          treemacs-silent-refresh                   nil
+          treemacs-sorting                          'alphabetic-asc
+          treemacs-select-when-already-in-treemacs 'move-back
+          treemacs-space-between-root-nodes        t
+          treemacs-tag-follow-cleanup               t
+          treemacs-tag-follow-delay                 1.5
+          treemacs-text-scale                       nil
+          treemacs-user-mode-line-format           nil
+          treemacs-user-header-line-format         nil
+          treemacs-wide-toggle-width                70
+          treemacs-width                            35
+          treemacs-width-increment                  1
+          treemacs-width-is-initially-locked       t
+          treemacs-workspace-switch-cleanup        nil)))
 
-** Magit
-Magit is a comprehensive Git interface for Emacs. It's often considered the best
-Git interface available in any editor.
+(use-package treemacs-evil
+  :after (treemacs evil)
+  :ensure t)
 
-#+begin_src emacs-lisp
-;; Magit for Git
-(use-package magit
-  :bind (("C-c m s" . magit-status)))
+(use-package treemacs-projectile
+  :after (treemacs projectile)
+  :ensure t)
+
+(use-package treemacs-magit
+  :after (treemacs magit)
+  :ensure t)
 #+end_src
 
 * Performance Monitoring
